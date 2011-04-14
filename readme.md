@@ -1,3 +1,10 @@
+[![Open Courses](http://www.wikinotes.ca/header.png)](http://www.wikinotes.ca)
+
+Google Docs to Wikicode Converter
+=================================
+
+Converts an html file produced by google docs to wikicode (add more?)
+
 Usage instructions
 ==================
 
@@ -14,8 +21,10 @@ To do
 *   Bolden text
 *   Figure out a more elegant way to format lists. List items of degree 4 have the same class as list items of degree 1. As a result, the output is the same. There should be a way to keep of track of the depth of the list.
 *   Insert a filter option that could for example remove headers and footers from Open Courses Google Notes
-
-Project
-========
 *   Create a web app that takes the url of the google doc and outputs the wikicode format
 *   Convert it to Java? (but why D:)
+
+About Open Courses
+==================
+
+We need boilerplate text. Someone?
