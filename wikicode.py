@@ -3,6 +3,7 @@
 import sys
 import string
 import re
+import wikidict
 
 def getAttribute(parent_match):
   tag = parent_match.group()
@@ -11,61 +12,36 @@ def getAttribute(parent_match):
 
 def getClass(line, match_object):
   fulltag = line[match_object.start():match_object.end()]
-  attr_regex = re.compile('class="([\w]*)"')
-  attr_match = attr_regex.search(fulltag)
-  return attr_match.group(1)
+  class_regex = re.compile('class="(.*)"')
+  class_content = class_regex.search(fulltag).group(1)
+  attr_regex = re.compile('[^ ]+')
+  attr_match = attr_regex.findall(class_content)
+  return attr_match # Uses two regex'es, can't find anything better for now
 
-def wikicode(line, stack, start, end):
+def wikicode(line, wikidict, stack, start, end):
   parent_match = stack[-1] # currently the last opening tag
   parent = getAttribute(parent_match)
   wikiline = ''  
-  
-  wikidict = {
-             'title':['=', '='],
-             'ol':['*', ''],
-             'h4':['====', '===='],
-             'h3':['===', '==='],
-             'h2':['==', '=='],
-             'h1':['=','='],
-             'p': ['',''],
-             'a': ['','']
-            # pretty short I know..
-             }
-  oldict = {
-           'c2':1,
-           'c9':1,
-           'c8':2,
-           'c10':3,
-           'c4':2,
-           'c20':3,  
-           }
-
   i = -1;
 
   while parent not in wikidict.keys():
     i = i - 1;
     if -i >= len(stack):
       return ""
-      break
     parent_match = stack[i]
     parent = getAttribute(parent_match)
   
-  left = ""
-  right = ""
+  format = ['', '']
   if parent in wikidict:
-    format = wikidict[parent]
-    if parent == 'ol':
-       classCode = getClass(line, parent_match)
-       if classCode in oldict:
-          degree = oldict[classCode]
-       else:
-          degree = 0
-       left = format[0] * degree
+    if 'noclass' in wikidict[parent].keys():
+      format = wikidict[parent]['noclass']
     else:
-       left = format[0]
-       right = format[1]
-       
-  return (left + line[start:end] + right)
+      classes = getClass(line, parent_match)
+      for class_name in classes: # Lol now the serious business would be combining a list with bold text, ouch (still not implemented)
+       if class_name in wikidict[parent].keys():
+          format = wikidict[parent][class_name]
+    return (format[0] + line[start:end] + format[1])
+  return line[start:end]
 
 def isClosingTag(tag):
   ct = re.compile('^</')
@@ -74,7 +50,7 @@ def isClosingTag(tag):
   else:
     return True
 
-def getOutput(line):
+def getOutput(line, wikidict):
   # Define tags
   tagRegex = re.compile('<.*?>') # ('<[a-zA-Z"=/ ]*>')
   iterator = tagRegex.finditer(line)
@@ -92,18 +68,19 @@ def getOutput(line):
      else:
        end = match.start()  #The end of the content is the beginning of the closing tag 
        if prev == cur:
-         output.append(wikicode(line, stack, start, end))
+         output.append(wikicode(line, wikidict, stack, start, end))
        stack.pop() # this could be useful for debugging later
   return output
 
 # File I/O
 html = raw_input('Enter .html file: ')
 txt = raw_input('Enter output file: ')
-
+wikidict_object = wikidict.Wikidict(html)
+wikidict = wikidict_object.dict
 input_file = open(html, 'r')
 line = input_file.readline() # LOL Google Docs output html as a single line
 input_file.close()
-output = getOutput(line)
+output = getOutput(line, wikidict) 
 
 output_file = open(txt, 'w')
 output_file.write('\n'.join(output))
