@@ -29,10 +29,10 @@ def getFormat(attribute, wikidict, tag):
 			format = wikidict[attribute]['noclass']
 		else:
 			classes = getClass(tag)
-			print 'classes are', classes
 			for class_name in classes:
 				if class_name in wikidict[attribute].keys():
 					format = wikidict[attribute][class_name]
+			print 'format returned for attribute', attribute, 'and classes', classes, 'is', format
 	return format
 
 def printFormat(tagType, attribute, format_stack, special_stack, output):
@@ -41,18 +41,16 @@ def printFormat(tagType, attribute, format_stack, special_stack, output):
 		start_format = format_stack[-1][0] # i.e. last start_format	
 		if attribute == 'li':
 			# special_stack['li'] is a list of tuples ('degree', 'format')
-			bullet = special_stack['litype']
-			print 'bullet is', bullet
+			bullet = special_stack['listatus']['bullet']
 			if len(special_stack['li']) == 0:
 				bullets = '\n' + bullet
 			else:
 				lastli = special_stack['li'][-1]
 				degree = lastli[0]
 				bullets = lastli[1]
-				if (degree - start_format) > 1: 
-					# if the level difference is more than 1, then reset the list
-					# I'm aware this is a flaw, but I'll keep it like this until I find a better solution
+				if special_stack['listatus']['new'] == True: 
 					bullets = '\n' + bullet
+					special_stack['listatus']['new'] = False
 				elif start_format > degree:
 					bullets = bullets + bullet
 				elif start_format < degree:
@@ -63,21 +61,23 @@ def printFormat(tagType, attribute, format_stack, special_stack, output):
 			special_stack['li'].append((start_format, bullets))
 			output.write(bullets)
 		elif attribute == 'ol':
-			print 'ol is of type', format_stack[-1]
-			special_stack['litype'] = format_stack[-1]
+			print 'attribute is ol, specialstack[-1] ==', format_stack[-1]
+			special_stack['listatus']['bullet'] = format_stack[-1]
 		else:
 			output.write(start_format)
+		if attribute[0] == 'h':
+			special_stack['listatus']['new'] = True
 	# if the tag is a closing tag
 	if tagType == 'closing':
+		print 'format_stack', format_stack
 		format = format_stack.pop()
-  		if attribute != 'li' and attribute != 'ol' and attribute != 'td':
-			print 'attribute is', attribute, 'and format is', format
+		print 'popped closing attribute', attribute, 'with format', format, 'from the above format_stack'
+ 		if attribute != 'li' and attribute != 'ol':
 			end_format = format[1]
-			output.write(end_format)		
+			output.write(end_format)
+				
 	return {'format_stack': format_stack, 'special_stack': special_stack}
-
-def erasePreviousFormat(special_stack, output):
-	length = format_stack[-1][0]
+	
 def wikicodify(input_filename, output_filename, wikidict):
 	print wikidict
 	
@@ -95,24 +95,27 @@ def wikicodify(input_filename, output_filename, wikidict):
 	format_stack = []
 	
 	# Special elements
-	special_stack = {'li': [], 'litype': '*'}
+	special_stack = {'li': [], 'listatus': {'bullet': '*', 'new': True }}
 	
 	content_start = 0
+	ignore_next_element = False
 	for match in iterator:
 		attribute = getAttribute(match.group())
 		
 		if(tagType(match.group()) == 'opening'):
-			format = getFormat(attribute, wikidict, match.group())
-			format_stack.append(format)
-			stacks = printFormat('opening', attribute, format_stack, special_stack, output)
-			format_stack = stacks['format_stack']
-			special_stack = stacks['special_stack']
+			if(attribute != 'br'): # Tu m'as donne du fil a retordre toi
+				format = getFormat(attribute, wikidict, match.group())
+				format_stack.append(format)
+				stacks = printFormat('opening', attribute, format_stack, special_stack, output)
+				format_stack = stacks['format_stack']
+				special_stack = stacks['special_stack']
 			content_start = match.end()
 		else:
 			content_end = match.start()
 			# Print all the contents except the css
 			if (attribute != 'style'):
 					output.write(html[content_start:content_end])
+					print '--->', html[content_start:content_end]
 			stacks = printFormat('closing', attribute, format_stack, special_stack, output)
 			format_stack = stacks['format_stack']
 			special_stack = stacks['special_stack']			
@@ -122,9 +125,9 @@ def wikicodify(input_filename, output_filename, wikidict):
 	print 'Html to wikicode success!'
 
 # File I/O
-# input_file = raw_input('Enter .html file: ')
-# output_file = raw_input('Enter output file: ')
+input_file = raw_input('Enter .html file: ')
+output_file = raw_input('Enter output file: ')
 # Get Google Docs css dictionary
-wikidict_object = wikidict.Wikidict('BIOL201LN21.html')
+wikidict_object = wikidict.Wikidict(input_file)
 wikidict = wikidict_object.dict
-wikicodify('BIOL201LN21.html', 'test1.txt', wikidict)
+wikicodify(input_file, output_file, wikidict)
