@@ -6,77 +6,70 @@ import wikidict
 
 '''Converts Google Doc html into wikicode.'''
 
-def getAttribute(tag):
-  attr_regex = re.compile('</{0,1}([a-zA-Z0-9]*)[> ]')
-  return attr_regex.match(tag).group(1)
+def get_element(tag):
+  element_regex = re.compile('</{0,1}([a-zA-Z0-9]*)[> ]')
+  return element_regex.match(tag).group(1)
 
-# Uses two regex'es, can't find anything better for now
-def getClass(tag):
+def get_class(tag):
   class_regex = re.compile('class="(.*?)"')
   class_content = class_regex.search(tag).group(1)
-  attr_regex = re.compile('[^ ]+')
-  attr_match = attr_regex.findall(class_content)
-  return attr_match
+  return class_content.split()
 
-def tagType(tag):
+def get_tag_type(tag):
   closing_tag = re.compile('^</')
   return 'opening' if (closing_tag.match(tag) is None) else 'closing'
 
-def getFormat(attribute, wikidict, tag):
+def get_format(element, wikidict, tag):
 	format = ['', '']
-	if attribute in wikidict:
-		if 'noclass' in wikidict[attribute].keys():
-			format = wikidict[attribute]['noclass']
+	if element in wikidict:
+		if 'noclass' in wikidict[element].keys():
+			format = wikidict[element]['noclass']
 		else:
-			classes = getClass(tag)
+			classes = get_class(tag)
 			for class_name in classes:
-				if class_name in wikidict[attribute].keys():
-					format = wikidict[attribute][class_name]
-			print 'format returned for attribute', attribute, 'and classes', classes, 'is', format
+				if class_name in wikidict[element].keys():
+					format = wikidict[element][class_name]
 	return format
 
-def printFormat(tagType, attribute, format_stack, special_stack, output):
+def update_elements_stack(elements_stack):
+	new_degree = elements_stack['formats'][-1][0]
+	# If special_stacl['limap'] is empty, build it with the default values
+	if len(elements_stack['li']['limap']) == 0:
+		i = 1
+		for ith_degree in elements_stack['li']['liref']:
+			if ith_degree not in elements_stack['li']['limap']:
+				elements_stack['li']['limap'][ith_degree] = i
+				i = i + 1
+	else: 
+		# The original map definition should work for most cases, exceptions should be handled here
+		1
+		# TODO: 
+		# if there is a switch from numbered bullets to unnumbered bullets (problem occurs in BIOL201LN21.html)
+		# 
+		
+	return elements_stack
+
+def print_format(tag_type, element, elements_stack, output):
 	# if the tag is an opening tag
-	if tagType == 'opening':
-		start_format = format_stack[-1][0] # i.e. last start_format	
-		if attribute == 'li':
-			# special_stack['li'] is a list of tuples ('degree', 'format')
-			bullet = special_stack['listatus']['bullet']
-			if len(special_stack['li']) == 0:
-				bullets = '\n' + bullet
-			else:
-				lastli = special_stack['li'][-1]
-				degree = lastli[0]
-				bullets = lastli[1]
-				if special_stack['listatus']['new'] == True: 
-					bullets = '\n' + bullet
-					special_stack['listatus']['new'] = False
-				elif start_format > degree:
-					bullets = bullets + bullet
-				elif start_format < degree:
-					bullets = bullets[0:-1]
-				else:
-					bullets = bullets
-					# It means start_format == bullets, in other words, don't change the list level.
-			special_stack['li'].append((start_format, bullets))
-			output.write(bullets)
-		elif attribute == 'ol':
-			print 'attribute is ol, specialstack[-1] ==', format_stack[-1]
-			special_stack['listatus']['bullet'] = format_stack[-1]
+	if tag_type == 'opening':
+		start_format = elements_stack['formats'][-1][0] # i.e. last start_format	
+		# print 'start_format', start_format
+		if element == 'li':
+			elements_stack = update_elements_stack(elements_stack)
+			bullet_type = elements_stack['li']['bullet_type']
+			bullet_nb = elements_stack['li']['limap'][elements_stack['formats'][-1][0]]
+			output.write('\n' + bullet_type * bullet_nb)
+		elif element == 'ol':
+			elements_stack['li']['bullet_type'] = elements_stack['formats'][-1]
 		else:
 			output.write(start_format)
-		if attribute[0] == 'h':
-			special_stack['listatus']['new'] = True
 	# if the tag is a closing tag
-	if tagType == 'closing':
-		print 'format_stack', format_stack
-		format = format_stack.pop()
-		print 'popped closing attribute', attribute, 'with format', format, 'from the above format_stack'
- 		if attribute != 'li' and attribute != 'ol':
-			end_format = format[1]
-			output.write(end_format)
-				
-	return {'format_stack': format_stack, 'special_stack': special_stack}
+	if tag_type == 'closing':
+		last_element_format = elements_stack['formats'].pop()
+		# print 'popped closing element', element, 'with format', format, 'from the above format_stack'
+ 		if element != 'li' and element != 'ol':
+			output.write(last_element_format[1])		
+	return elements_stack
 	
 def wikicodify(input_filename, output_filename, wikidict):
 	print wikidict
@@ -92,42 +85,49 @@ def wikicodify(input_filename, output_filename, wikidict):
 	# Define tags
 	tagRegex = re.compile('<.*?>')
 	iterator = tagRegex.finditer(html)
-	format_stack = []
 	
-	# Special elements
-	special_stack = {'li': [], 'listatus': {'bullet': '*', 'new': True }}
+	# Stacks
+	format_stack = []
+	liref = []
+	for i in wikidict['li'].values():
+		for j in i:
+			liref.append(j)
+	liref.sort()
+	elements_stack = {'li': {'li_bullet_type' : '*','limap' :{}, 'liref' : liref }, 'formats': [], }
 	
 	content_start = 0
-	ignore_next_element = False
+	ignore_br_at = 0
 	for match in iterator:
-		attribute = getAttribute(match.group())
-		
-		if(tagType(match.group()) == 'opening'):
-			if(attribute != 'br'): # Tu m'as donne du fil a retordre toi
-				format = getFormat(attribute, wikidict, match.group())
-				format_stack.append(format)
-				stacks = printFormat('opening', attribute, format_stack, special_stack, output)
-				format_stack = stacks['format_stack']
-				special_stack = stacks['special_stack']
-			content_start = match.end()
+		element = get_element(match.group())
+		if(get_tag_type(match.group()) == 'opening'):
+			if(element != 'br'): # Tu m'as donne du fil a retordre toi
+				format = get_format(element, wikidict, match.group())
+				elements_stack['formats'].append(format)
+				elements_stack = print_format('opening', element, elements_stack, output)
+				content_start = match.end()
+			else:
+				ignore_br_at = match.start()
 		else:
 			content_end = match.start()
 			# Print all the contents except the css
-			if (attribute != 'style'):
-					output.write(html[content_start:content_end])
-					print '--->', html[content_start:content_end]
-			stacks = printFormat('closing', attribute, format_stack, special_stack, output)
-			format_stack = stacks['format_stack']
-			special_stack = stacks['special_stack']			
+			if (element != 'style'):
+					if ignore_br_at > 0:
+						output.write(html[content_start:ignore_br_at]+ '\n' + html[ignore_br_at + 4 :content_end])
+						ignore_br_at = 0
+					else:
+						output.write(html[content_start:content_end])
+						# print '-->', html[content_start:content_end]	
+			elements_stack = print_format('closing', element, elements_stack, output)		
 			content_start = match.end()
-			
 	output.close()
 	print 'Html to wikicode success!'
 
 # File I/O
-input_file = raw_input('Enter .html file: ')
-output_file = raw_input('Enter output file: ')
+# input_file = raw_input('Enter .html file: ')
+# output_file = raw_input('Enter output file: ')
 # Get Google Docs css dictionary
+input_file = 'BIOL201LN21.html'
+output_file = 'test.txt'
 wikidict_object = wikidict.Wikidict(input_file)
 wikidict = wikidict_object.dict
 wikicodify(input_file, output_file, wikidict)
