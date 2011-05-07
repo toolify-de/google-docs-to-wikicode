@@ -54,7 +54,14 @@ def get_format(element, wikidict, tag):
 					1 #formats.append(wikidict[element][class_name])
 				else:
 					formats.append([' ' + attribute[0] + '="' + attribute[1] + '"', ''])
-			1 # TODO: take into account table attributes (cellpadding, cellspacing, border etc.)
+		if element == 'a':
+			for attribute in get_attributes(tag):
+				# bookmarks start with '#' and we don't want that obviously
+				if attribute[0] == 'href':
+					if attribute[1][0] == '#':
+						return ['', '']
+					else:
+						formats.append([attribute[1] + ' ', ''])
 	format_before = ''
 	format_after = ''
 	for format_list in formats:
@@ -103,6 +110,8 @@ def print_format(tag_type, element, elements_stack, output):
 					elements_stack['table']['insert_break'] = True
 				else:
 					output.write('<br/>') # write nothing (p defaults to a return carriage and we don't want that)
+		elif element == 'a' and elements_stack['elements'][-2][0] == 'h':
+			1 # write nothing if the hyperlink is inside a header
 		else:
 			format = elements_stack['formats'][-1][0]
 			if len(format) > 0:
@@ -112,8 +121,8 @@ def print_format(tag_type, element, elements_stack, output):
 	if tag_type == 'closing':
 		last_element_format = elements_stack['formats'].pop()
 		# print 'popped closing element', element, 'with format', format, 'from the above format_stack'
-		if (element == 'p'and elements_stack['elements'][-1] == 'td') or (element == 'li') or (element == 'ol'):
-			1 # write nothing (p defaults to a return carriage and we don't want that)
+		if (element == 'p'and elements_stack['elements'][-1] == 'td') or (element == 'li') or (element == 'ol') or (element == 'a' and elements_stack['elements'][-1][0] == 'h'):
+			1 # write nothing
 		else:
 			format = last_element_format[1]
 			if len(format) > 0:
