@@ -10,6 +10,7 @@ class Wikidict:
     self.filename = filename
     self.style = self.getStyle()  
     self.dict = self.getDict(self.getCSSDict())
+    print self.getCSSDict()
 
   # Helper methods
   def getStyle(self):
@@ -27,7 +28,7 @@ class Wikidict:
     for class_content in class_iterator:
        class_name = class_content.group(1)
        content = class_content.group(2)
-       content_regex = re.compile('(.*?):([\d\w\.]*?);')
+       content_regex = re.compile('(.*?):([#\d\w\.]*?);')
        cssdict[class_name] = {}
        content = content + ';' # hacky, don't judge me
        content_iterator = content_regex.finditer(content)
@@ -45,9 +46,13 @@ class Wikidict:
              'h3':{'noclass':['\n===', '===\n']},
              'h4':{'noclass':['\n====', '====\n']},
              'h5':{'noclass':['\n=====', '=====\n']},
-             'p': {'noclass':['\n','\n']},
+             'p': {'noclass':['\n','']},
              'b': {'noclass':["'''", "'''"]},
-             'li': {}, 'span': {}, 'ol' : {}
+			 'table': {'noclass':['\n{| class="wikitable" width="100%"', ' \n|}']},
+			 # if you don't like these default settings, feel free to change them
+			 'td': {'default':['\n|', '']},
+			 'tr': {'append':['\n|-', '']},
+			 'li': {}, 'span': {}, 'ol' : {}
             }
     dict = self.addLi(dict, cssdict)
     dict = self.addOther(dict, cssdict)
@@ -101,10 +106,23 @@ class Wikidict:
 			dict['span'][class_name] = ['<u>', '</u>']
 		if 'list-style-type' in cssdict[class_name]:
 			if cssdict[class_name]['list-style-type'] == 'decimal' and class_name not in dict['span']:
-				dict['ol'][class_name] = '#'
+				dict['ol'][class_name] = ['#']
 			else:
 				if class_name not in dict['span']:
-					dict['ol'][class_name] = '*'					
+					dict['ol'][class_name] = ['*']
+					
+		attr_vals  = []
+		# attribute 'width' is ingored because it would produce narrow tables
+		# if you want to allow that, just add 'width' in the list below
+		possible_td_attributes = ['border-color', 'vertical-align', 'border-width', 'border-style', 'padding']
+		for attribute in possible_td_attributes:
+			if attribute in cssdict[class_name]:
+				attr_vals.append(attribute+'=\"' + cssdict[class_name][attribute] + '\"')
+		if len(attr_vals) > 0:
+			dict['td'][class_name] = ['\n| '+ ' '.join(attr_vals) + ' | ', '']	
+			print 'C:', dict['td'][class_name]
+		# if	'height' in cssdict[class_name]:
+		#	dict['tr'][class_name] = ['\n! ' + cssdict[class_name]['height'] + ' | ', '']
 	return dict
 			
 
