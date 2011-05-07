@@ -18,16 +18,16 @@ Status
 *   Works for very simple Google Docs e.g. https://docs.google.com/document/d/1P63dmJHDk_35OVpix5Cd8zHxKaMmi_8Bo9o7Pdkm6M0/edit?hl=en&authkey=CMyc-aYF#
 *   Has a Wikidict class that creates a dictionary with wikicode/html element pairs
 *   Can convert: 
-**  Lists (ordered and unordered) 
-**  Tables (defaults to 'class="wikitable" width="100%"')
-**  Bold, underlined and italicized text
-**  Headers
-**  Hyperlinks (ignores bookmarks though)
+ *  Lists (ordered and unordered) 
+ *  Tables (defaults to 'class="wikitable" width="100%"')
+ *  Bold, underlined and italicized text
+ *  Headers
+ *  Hyperlinks (ignores bookmarks though)
 
 To do
 =====
 *   Create a web app that takes the url of the google doc and outputs the wikicode format
-*   Parse html prior to conversion to delete empty tag-content. e.g. <span class="c3"> </span> or <h4></h4>. It is completely useless and fucks up the formatting.
+*   Parse html prior to conversion to delete empty tag-content. e.g. `<span class="c3"> </span>` or `<h4></h4>`. It is completely useless and fucks up the formatting.
 
 About Open Courses
 ==================
